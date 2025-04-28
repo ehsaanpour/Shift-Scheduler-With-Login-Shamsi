@@ -1,0 +1,15 @@
+.three-shifts-warning {
+    background-color: #f8d7da !important; /* Light red */
+    color: #721c24 !important;
+}
+
+.consecutive-days-warning {
+    background-color: #cce5ff !important; /* Light blue */
+    color: #004085 !important;
+}
+
+/* NEW: Style for three consecutive Shift 3s */
+.three-shift3-warning {
+    background-color: #fff3cd !important; /* Light yellow */
+    color: #856404 !important;
+} 

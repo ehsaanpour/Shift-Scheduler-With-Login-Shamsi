@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shift Scheduler</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
+    <script src="{{ url_for('static', filename='js/highlight-patterns.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/static-shift-handler.js') }}"></script>
+</head>
+
+{% extends "base.html" %}
+
+{% block title %}Shift Scheduler - Home{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h1><i class="fas fa-calendar-alt me-2"></i>Shift Scheduler</h1>
+        <p class="lead">Schedule shifts for your engineering team across multiple workplaces</p>
+    </div>
+    <div class="col-md-6 text-end d-flex flex-column justify-content-end align-items-end">
+        <div class="mb-2 small text-muted">
+            <i class="fas fa-info-circle me-1"></i> If the Generate Excel button doesn't work, try the Excel Generator page.
+        </div>
+        <div>
+            <button id="btnGenerate" class="btn btn-success me-2">
+                <i class="fas fa-file-excel me-1"></i> Generate Excel
+            </button>
+            <a href="/excel-generator" class="btn btn-outline-success">
+                <i class="fas fa-file-excel me-1"></i> Excel Generator
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Left Panel - Engineers -->
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-users me-2"></i>Engineers</h5>
+            </div>
+            <div class="card-body">
+                <div id="engineersList">
+                    <!-- Engineers will be displayed here -->
+                </div>
+                <hr>
+                <button class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#addEngineerModal">
+                    <i class="fas fa-plus me-1"></i> Add Engineer
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Panel - Scheduling -->
+    <div class="col-md-9">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Shift Scheduler</h5>
+                    <div>
+                        <select id="monthSelect" class="form-select form-select-sm d-inline-block me-2" style="width: 150px;">
+                            <option value="1">January</option>
+                            <option value="2">February</option>
+                            <option value="3">March</option>
+                            <option value="4">April</option>
+                            <option value="5">May</option>
+                            <option value="6">June</option>
+                            <option value="7">July</option>
+                            <option value="8">August</option>
+                            <option value="9">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                        </select>
+                        <select id="yearSelect" class="form-select form-select-sm d-inline-block" style="width: 100px;">
+                            <!-- Years will be populated dynamically -->
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <ul class="nav nav-tabs nav-fill" id="workplaceTabs" role="tablist">
+                    {% for workplace in workplaces %}
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if loop.first %}active{% endif %}" 
+                                id="tab-{{ workplace|replace(' ', '-')|lower }}" 
+                                data-bs-toggle="tab" 
+                                data-bs-target="#content-{{ workplace|replace(' ', '-')|lower }}" 
+                                type="button" 
+                                role="tab">
+                            {{ workplace }}
+                        </button>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <div class="tab-content p-3" id="workplaceTabContent">
+                    {% for workplace in workplaces %}
+                    <div class="tab-pane fade {% if loop.first %}show active{% endif %}" 
+                         id="content-{{ workplace|replace(' ', '-')|lower }}" 
+                         role="tabpanel">
+                        <div class="d-flex justify-content-end mb-3">
+                            <button class="btn btn-sm btn-outline-info import-pattern-btn" 
+                                    data-workplace="{{ workplace }}">
+                                <i class="fas fa-file-import me-1"></i> Import Pattern
+                            </button>
+                        </div>
+                        <div id="schedule-{{ workplace|replace(' ', '-')|lower }}">
+                            <!-- Schedule table will be generated here -->
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="card-footer text-end">
+                <div class="row align-items-center">
+                    <div class="col-md-6 text-start small">
+                        <div class="fw-bold mb-2">Shift Pattern Warnings:</div>
+                        <div class="mb-1"><span class="three-shifts-warning me-1">■</span> Engineer works all three shifts (1,2,3) in a single day across any studios</div>
+                        <div><span class="consecutive-days-warning me-1">■</span> Engineer has Shift 3 followed by Shift 1 the next day across any studios</div>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <button id="btnClearShifts" class="btn btn-danger me-2">
+                            <i class="fas fa-eraser me-1"></i> Clear All Shifts
+                        </button>
+                        <button id="btnAutoAssign" class="btn btn-warning me-2">
+                            <i class="fas fa-magic me-1"></i> Auto-Assign Engineers
+                        </button>
+                        <button id="btnSaveSchedule" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Save Schedule
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Engineer Modal -->
+<div class="modal fade" id="addEngineerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>Add/Edit Engineer</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="engineerForm">
+                    <div class="mb-3">
+                        <label for="engineerName" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="engineerName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Workplaces</label>
+                        {% for workplace in workplaces %}
+                        <div class="form-check">
+                            <input class="form-check-input workplace-check" type="checkbox" value="{{ workplace }}" id="check-{{ workplace|replace(' ', '-')|lower }}">
+                            <label class="form-check-label" for="check-{{ workplace|replace(' ', '-')|lower }}">
+                                {{ workplace }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btnSaveEngineer">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Excel Generated Modal -->
+<div class="modal fade" id="excelGeneratedModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-check-circle me-2"></i>Excel Files Generated</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Excel files have been generated successfully!</p>
+                <ul id="downloadList" class="list-group">
+                    <!-- Download links will be generated here -->
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Assignment Summary Modal -->
+<div class="modal fade" id="assignmentSummaryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title"><i class="fas fa-magic me-2"></i>Auto-Assignment Complete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Summary content will be generated dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Pattern Modal -->
+<div class="modal fade" id="importPatternModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="fas fa-file-import me-2"></i>Import Pattern</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Upload an Excel file with engineer assignments pattern for <strong id="patternWorkplaceName"></strong>.</p>
+                <p class="small text-muted">The Excel file should have 30 or 31 rows (days) and 3 columns (shifts) with engineer names.</p>
+                
+                <form id="patternUploadForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="patternFile" class="form-label">Pattern File</label>
+                        <input class="form-control" type="file" id="patternFile" accept=".xlsx,.xls">
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="overrideExisting">
+                        <label class="form-check-label" for="overrideExisting">
+                            Override existing assignments
+                        </label>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="respectLimitations" checked>
+                        <label class="form-check-label" for="respectLimitations">
+                            Respect engineer limitations
+                        </label>
+                    </div>
+                </form>
+                
+                <div id="patternPreview" class="d-none">
+                    <h6 class="mt-3">Preview:</h6>
+                    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                        <table class="table table-sm table-bordered" id="patternPreviewTable">
+                            <thead>
+                                <tr>
+                                    <th>Day</th>
+                                    <th>Shift 1</th>
+                                    <th>Shift 2</th>
+                                    <th>Shift 3</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Preview content will be added here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-info" id="btnPreviewPattern" disabled>
+                    <i class="fas fa-eye me-1"></i> Preview
+                </button>
+                <button type="button" class="btn btn-primary" id="btnApplyPattern" disabled>
+                    <i class="fas fa-check me-1"></i> Apply Pattern
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Limitations Modal -->
+<div class="modal fade" id="limitationsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title"><i class="fas fa-clock me-2"></i>Set Shift Limitations</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Select days and shifts when the engineer is <strong>not available</strong> to work:</p>
+                <div id="limitationsContent">
+                    <!-- Limitations table will be generated here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btnSaveLimitations">
+                    <i class="fas fa-save me-1"></i> Save Limitations
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Shift Limits Modal -->
+<div class="modal fade" id="shiftLimitsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-sliders-h me-2"></i>Adjust Shift Limits
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Set the minimum and maximum number of shifts for <span id="shiftLimitsEngineerName" class="fw-bold"></span>:</p>
+                
+                <div class="mb-3">
+                    <label for="minShifts" class="form-label">Minimum Shifts:</label>
+                    <input type="number" class="form-control" id="minShifts" min="1" max="50" value="10">
+                    <div class="form-text">Minimum number of shifts this engineer should have</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="maxShifts" class="form-label">Maximum Shifts:</label>
+                    <input type="number" class="form-control" id="maxShifts" min="1" max="100" value="30">
+                    <div class="form-text">Maximum number of shifts this engineer should have</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveShiftLimits">Save Limits</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3">
+    <h6>Legend:</h6>
+    <ul>
+        <li><span style="background-color: #f8d7da; color: #721c24; padding: 2px 5px; border-radius: 3px;">Red Highlight</span>: 3 shifts within 24 hours.</li>
+        <li><span style="background-color: #cce5ff; color: #004085; padding: 2px 5px; border-radius: 3px;">Blue Highlight</span>: Working consecutive days.</li>
+        <li><span style="background-color: #fff3cd; color: #856404; padding: 2px 5px; border-radius: 3px;">Yellow Highlight</span>: Three consecutive days in Shift 3.</li>
+    </ul>
+</div>
+
+<!-- Include jalaali-js library -->
+<script src="https://cdn.jsdelivr.net/npm/jalaali-js/dist/jalaali.min.js"></script>
+
+<!-- Include your custom JS files -->
+<!-- Ensure main.js comes after jalaali-js if it uses it immediately -->
+<!-- Note: static-shift-handler.js and highlight-patterns.js were in <head>, \
+     moved main.js here for clarity, assuming it's the primary script -->
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Global variables
+    let engineers = [];
+    let currentSchedule = {};
+    let currentEngineerForLimitations = null;
+    let currentEngineerForShiftLimits = null;
+    
+    // Define Persian calendar constants
+    const PERSIAN_MONTH_NAMES = [
+        "", "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", 
+        "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"
+    ];
+    const PERSIAN_DAY_NAMES = [
+        "شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"
+    ];
+    
+    // Initialize current Jalali date
+    const currentGregorianDate = new Date();
+    const currentJalaliDate = jalaali.toJalaali(currentGregorianDate);
+    const currentJalaliMonth = currentJalaliDate.jm;
+    const currentJalaliYear = currentJalaliDate.jy;
+    
+    // Populate year dropdown with Jalali years
+    const yearSelect = document.getElementById('yearSelect');
+    yearSelect.innerHTML = ''; // Clear existing options
+    for (let year = currentJalaliYear - 5; year <= currentJalaliYear + 5; year++) {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year; // Display Jalali year
+        if (year === currentJalaliYear) {
+            option.selected = true;
+        }
+        yearSelect.appendChild(option);
+    }
+    
+    // Populate month dropdown with Persian names
+    const monthSelect = document.getElementById('monthSelect');
+    monthSelect.innerHTML = ''; // Clear existing hardcoded options
+    PERSIAN_MONTH_NAMES.forEach((name, index) => {
+        if (index === 0) return; // Skip index 0
+        const option = document.createElement('option');
+        option.value = index; // Month number (1-12)
+        option.textContent = name; // Persian month name
+        if (index === currentJalaliMonth) {
+            option.selected = true;
+        }
+        monthSelect.appendChild(option);
+    });
+    
+    // Load engineers on page load (this will trigger generateCalendars)
+    loadEngineers();
+    
+    // Event listeners
+    document.getElementById('btnSaveEngineer').addEventListener('click', saveEngineer);
+    
+    // Override the Clear All Shifts button to use our custom implementation
+    const clearAllShiftsBtn = document.getElementById('btnClearShifts');
+    if (clearAllShiftsBtn) {
+        clearAllShiftsBtn.addEventListener('click', function(event) {
+            // Prevent any default behavior
+            event.preventDefault();
+            event.stopPropagation();
+            
+            // Our custom clear implementation
+            handleClearAllShifts();
+            
+            // Return false to prevent any default behavior
+            return false;
+        });
+    }
+    
+    // Override the Save Schedule button to use our custom implementation when schedule is empty
+    const saveScheduleBtn = document.getElementById('btnSaveSchedule');
+    if (saveScheduleBtn) {
+        saveScheduleBtn.addEventListener('click', function(event) {
+            // Prevent any default behavior
+            event.preventDefault();
+            event.stopPropagation();
+            
+            // Our custom save implementation
+            handleSaveSchedule();
+            
+            // Return false to prevent any default behavior
+            return false;
+        });
+    }
+    
+    document.getElementById('btnGenerate').addEventListener('click', generateExcel);
+    document.getElementById('monthSelect').addEventListener('change', generateCalendars);
+    document.getElementById('yearSelect').addEventListener('change', generateCalendars);
+    document.getElementById('btnSaveLimitations').addEventListener('click', saveLimitations);
+    document.getElementById('saveShiftLimits').addEventListener('click', saveShiftLimits);
+    
+    /**
+     * Custom implementation to handle clearing all shifts
+     */
+    function handleClearAllShifts() {
+        console.log("[CUSTOM] Clearing all shifts and highlights");
+        
+        // Clear all select values
+        document.querySelectorAll('.engineer-select').forEach(select => {
+            // Clear the select value
+            select.value = '';
+            
+            // Remove any highlight classes
+            select.classList.remove('three-shifts-warning', 'consecutive-days-warning');
+        });
+        
+        // Get current month and year for saving
+        const month = parseInt(document.getElementById('monthSelect').value);
+        const year = parseInt(document.getElementById('yearSelect').value);
+        
+        // Get the list of workplaces from the DOM
+        const workplacesList = Array.from(document.querySelectorAll('.engineer-select'))
+            .map(s => s.dataset.workplace)
+            .filter((v, i, a) => a.indexOf(v) === i);
+        
+        console.log("[CUSTOM] Detected workplaces:", workplacesList);
+        
+        // Create an empty schedule structure with all workplaces
+        const emptyWorkplaces = {};
+        workplacesList.forEach(workplace => {
+            emptyWorkplaces[workplace] = {};
+        });
+        
+        // Reset the current schedule in memory to an empty state
+        currentSchedule = {};
+        workplacesList.forEach(workplace => {
+            currentSchedule[workplace] = {};
+        });
+        
+        console.log("[CUSTOM] Cleared schedule structure:", currentSchedule);
+        
+        // Save the empty schedule to server directly, bypassing the normal saveSchedule function
+        fetch('/api/schedule', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                year,
+                month,
+                workplaces: emptyWorkplaces
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                console.log("[CUSTOM] Successfully cleared all shifts");
+                // alert('All shifts have been cleared successfully.'); // Removed this alert
+                
+                // Force reset all selects again to be sure
+                document.querySelectorAll('.engineer-select').forEach(select => {
+                    select.value = '';
+                    select.classList.remove('three-shifts-warning', 'consecutive-days-warning');
+                });
+            }
+        })
+        .catch(error => {
+            console.error('[CUSTOM] Error clearing shifts:', error);
+            alert('Failed to clear shifts. Please try again.');
+        });
+    }
+    
+    /**
+     * Custom implementation to handle saving schedule, with special handling for empty schedules
+     */
+    function handleSaveSchedule() {
+        const month = parseInt(document.getElementById('monthSelect').value);
+        const year = parseInt(document.getElementById('yearSelect').value);
+        
+        // Get the list of workplaces from the DOM
+        const workplacesList = Array.from(document.querySelectorAll('.engineer-select'))
+            .map(s => s.dataset.workplace)
+            .filter((v, i, a) => a.indexOf(v) === i);
+        
+        console.log("[CUSTOM] Detected workplaces for save:", workplacesList);
+        
+        // Initialize workplaces structure with empty objects for all workplaces
+        const workplaces = {};
+        workplacesList.forEach(workplace => {
+            workplaces[workplace] = {};
+        });
+        
+        // Check if we have any selected engineers at all
+        let hasAnyAssignments = false;
+        
+        // Collect non-empty schedule data from all select elements
+        document.querySelectorAll('.engineer-select').forEach(select => {
+            if (select.value) {
+                hasAnyAssignments = true;
+                
+                const workplace = select.dataset.workplace;
+                const day = select.dataset.day;
+                const shift = select.dataset.shift;
+                
+                if (!workplaces[workplace]) {
+                    workplaces[workplace] = {};
+                }
+                
+                if (!workplaces[workplace][day]) {
+                    workplaces[workplace][day] = {};
+                }
+                
+                workplaces[workplace][day][shift] = select.value;
+            }
+        });
+        
+        console.log('[CUSTOM] Saving schedule with data:', workplaces);
+        console.log('[CUSTOM] Has assignments:', hasAnyAssignments);
+        
+        // Save the schedule to the server
+        fetch('/api/schedule', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                year,
+                month,
+                workplaces
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('Schedule saved successfully!');
+                
+                // Update the in-memory schedule to match what we just saved
+                currentSchedule = JSON.parse(JSON.stringify(workplaces));
+                
+                // If we have any assignments, let loadSchedule handle it
+                // Otherwise, ensure all fields stay empty
+                if (hasAnyAssignments) {
+                    console.log('[CUSTOM] Schedule has assignments, letting loadSchedule handle it');
+                    loadSchedule(year, month);
+                } else {
+                    console.log('[CUSTOM] Empty schedule, keeping all fields empty');
+                    // Just ensure all fields are still empty and highlights are removed
+                    document.querySelectorAll('.engineer-select').forEach(select => {
+                        select.value = '';
+                        select.classList.remove('three-shifts-warning', 'consecutive-days-warning');
+                    });
+                }
+            }
+        })
+        .catch(error => {
+            console.error('[CUSTOM] Error saving schedule:', error);
+            alert('Failed to save schedule. Please try again.');
+        });
+    }
+    
+    function loadEngineers() {
+        fetch('/api/engineers')
+            .then(response => response.json())
+            .then(data => {
+                engineers = data;
+                updateEngineersList();
+                generateCalendars();
+            })
+            .catch(error => {
+                console.error('Error loading engineers:', error);
+                alert('Failed to load engineers. Please try again.');
+            });
+    }
+    
+    function updateEngineersList() {
+        const engineersList = document.getElementById('engineersList');
+        engineersList.innerHTML = '';
+        
+        if (engineers.length === 0) {
+            engineersList.innerHTML = '<div class="alert alert-info">No engineers added yet.</div>';
+            return;
+        }
+        
+        engineers.forEach(eng => {
+            const card = document.createElement('div');
+            card.classList.add('card', 'mb-2');
+            
+            const cardBody = document.createElement('div');
+            cardBody.classList.add('card-body', 'p-2');
+            
+            const nameRow = document.createElement('div');
+            nameRow.classList.add('d-flex', 'justify-content-between', 'align-items-center');
+            
+            const name = document.createElement('h6');
+            name.classList.add('mb-1');
+            name.textContent = eng.name;
+            
+            const actions = document.createElement('div');
+            
+            const editBtn = document.createElement('button');
+            editBtn.classList.add('btn', 'btn-sm', 'btn-outline-primary', 'me-1');
+            editBtn.innerHTML = '<i class="fas fa-edit"></i>';
+            editBtn.addEventListener('click', () => editEngineer(eng));
+            
+            const limitBtn = document.createElement('button');
+            limitBtn.classList.add('btn', 'btn-sm', 'btn-outline-warning', 'me-1');
+            limitBtn.innerHTML = '<i class="fas fa-clock"></i>';
+            limitBtn.title = 'Set shift limitations';
+            limitBtn.addEventListener('click', () => showLimitationsModal(eng));
+            
+            const shiftLimitsBtn = document.createElement('button');
+            shiftLimitsBtn.classList.add('btn', 'btn-sm', 'btn-outline-info', 'me-1');
+            shiftLimitsBtn.innerHTML = '<i class="fas fa-sliders-h"></i>';
+            shiftLimitsBtn.title = 'Adjust min/max shifts';
+            shiftLimitsBtn.addEventListener('click', () => showShiftLimitsModal(eng));
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.classList.add('btn', 'btn-sm', 'btn-outline-danger');
+            deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+            deleteBtn.addEventListener('click', () => deleteEngineer(eng.name));
+            
+            actions.appendChild(editBtn);
+            actions.appendChild(limitBtn);
+            actions.appendChild(shiftLimitsBtn);
+            actions.appendChild(deleteBtn);
+            
+            nameRow.appendChild(name);
+            nameRow.appendChild(actions);
+            
+            const workplaces = document.createElement('small');
+            workplaces.classList.add('text-muted');
+            workplaces.textContent = `Workplaces: ${eng.workplaces.join(', ')}`;
+            
+            // Add limitations info if any
+            const limitCount = eng.limitations ? Object.keys(eng.limitations).reduce((count, day) => {
+                return count + eng.limitations[day].length;
+            }, 0) : 0;
+            
+            if (limitCount > 0) {
+                const limitations = document.createElement('small');
+                limitations.classList.add('text-danger', 'd-block', 'mt-1');
+                limitations.innerHTML = `<i class="fas fa-exclamation-circle me-1"></i>Has ${limitCount} shift limitations`;
+            
+                cardBody.appendChild(nameRow);
+                cardBody.appendChild(workplaces);
+                cardBody.appendChild(limitations);
+            } else {
+                cardBody.appendChild(nameRow);
+                cardBody.appendChild(workplaces);
+            }
+            
+            // Add min/max shifts info if any
+            if (eng.minShifts || eng.maxShifts) {
+                const shiftsLimits = document.createElement('small');
+                shiftsLimits.classList.add('text-info', 'd-block', 'mt-1');
+                shiftsLimits.innerHTML = `<i class="fas fa-sliders-h me-1"></i>Shifts: Min ${eng.minShifts || 10}, Max ${eng.maxShifts || 30}`;
+            
+                cardBody.appendChild(shiftsLimits);
+            }
+            
+            card.appendChild(cardBody);
+            engineersList.appendChild(card);
+        });
+    }
+    
+    function editEngineer(engineer) {
+        // Fill form
+        document.getElementById('engineerName').value = engineer.name;
+        
+        // Uncheck all workplaces
+        document.querySelectorAll('.workplace-check').forEach(check => {
+            check.checked = false;
+        });
+        
+        // Check relevant workplaces
+        engineer.workplaces.forEach(workplace => {
+            const checkId = `check-${workplace.replace(/ /g, '-').toLowerCase()}`;
+            const checkbox = document.getElementById(checkId);
+            if (checkbox) {
+                checkbox.checked = true;
+            }
+        });
+        
+        // Show modal
+        new bootstrap.Modal(document.getElementById('addEngineerModal')).show();
+    }
+    
+    function saveEngineer() {
+        const name = document.getElementById('engineerName').value.trim();
+        if (!name) {
+            alert('Please enter engineer name');
+            return;
+        }
+        
+        const workplaces = [];
+        document.querySelectorAll('.workplace-check:checked').forEach(check => {
+            workplaces.push(check.value);
+        });
+        
+        if (workplaces.length === 0) {
+            alert('Please select at least one workplace');
+            return;
+        }
+        
+        // Find existing engineer to preserve limitations and shift limits
+        let existingLimitations = {};
+        let minShifts = 10;
+        let maxShifts = 30;
+        
+        const existingEngineer = engineers.find(eng => eng.name === name);
+        if (existingEngineer) {
+            if (existingEngineer.limitations) {
+                existingLimitations = existingEngineer.limitations;
+            }
+            if (existingEngineer.minShifts) {
+                minShifts = existingEngineer.minShifts;
+            }
+            if (existingEngineer.maxShifts) {
+                maxShifts = existingEngineer.maxShifts;
+            }
+        }
+        
+        // Show loading indicator
+        document.getElementById('btnSaveEngineer').disabled = true;
+        document.getElementById('btnSaveEngineer').innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+        
+        fetch('/api/engineers', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name,
+                workplaces,
+                limitations: existingLimitations,
+                minShifts: minShifts,
+                maxShifts: maxShifts
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Server responded with status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.status === 'success') {
+                // Reset form
+                document.getElementById('engineerForm').reset();
+                
+                // Close modal
+                bootstrap.Modal.getInstance(document.getElementById('addEngineerModal')).hide();
+                
+                // Show success message
+                alert('Engineer saved successfully!');
+                
+                // Reload engineers
+                loadEngineers();
+            } else {
+                throw new Error('Server returned unsuccessful status');
+            }
+        })
+        .catch(error => {
+            console.error('Error saving engineer:', error);
+            alert('Failed to save engineer. Please try again.');
+        })
+        .finally(() => {
+            // Reset button state
+            document.getElementById('btnSaveEngineer').disabled = false;
+            document.getElementById('btnSaveEngineer').innerHTML = 'Save';
+        });
+    }
+    
+    function deleteEngineer(name) {
+        if (confirm(`Are you sure you want to delete ${name}?`)) {
+            fetch(`/api/engineers/${name}`, {
+                method: 'DELETE',
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Reload engineers
+                    loadEngineers();
+                }
+            })
+            .catch(error => {
+                console.error('Error deleting engineer:', error);
+                alert('Failed to delete engineer. Please try again.');
+            });
+        }
+    }
+    
+    function generateCalendars() {
+        const month = parseInt(document.getElementById('monthSelect').value);
+        const year = parseInt(document.getElementById('yearSelect').value);
+        
+        console.log(`Inline Script: Generating calendar for Jalali Year: ${year}, Month: ${month}`);
+        
+        // Validate Jalali date
+        if (!jalaali.isValidJalaaliDate(year, month, 1)) {
+            console.error(`Inline Script: Invalid Jalali date selected: ${year}-${month}-1`);
+            return; // Stop generation if date is invalid
+        }
+
+        // Get number of days in the Jalali month
+        const daysInMonth = jalaali.jalaaliMonthLength(year, month);
+        
+        // Get starting day of week (0=Sat, 1=Sun, ... 6=Fri)
+        const firstDayGregorian = jalaali.toGregorian(year, month, 1);
+        const firstDayDateObject = new Date(firstDayGregorian.gy, firstDayGregorian.gm - 1, firstDayGregorian.gd);
+        const startingDayOfWeek = (firstDayDateObject.getDay() + 1) % 7; 
+
+        // For each workplace, generate the table
+        document.querySelectorAll('[id^="schedule-"]').forEach(container => {
+            const workplaceId = container.id.replace('schedule-', '');
+            const workplaceName = workplaceId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); 
+            
+            // Create table
+            const table = document.createElement('table');
+            table.className = 'table table-bordered';
+            
+            // Create header
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            const headers = ['Day', 'Shift 1', 'Shift 2', 'Shift 3'];
+            
+            headers.forEach(header => {
+                const th = document.createElement('th');
+                th.textContent = header;
+                th.className = 'text-center';
+                headerRow.appendChild(th);
+            });
+            
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+            
+            // Create body
+            const tbody = document.createElement('tbody');
+            
+            for (let day = 1; day <= daysInMonth; day++) {
+                // Get Gregorian date for weekend check
+                const currentGregorian = jalaali.toGregorian(year, month, day);
+                const currentDayDateObject = new Date(currentGregorian.gy, currentGregorian.gm - 1, currentGregorian.gd);
+                const currentDayOfWeekGreg = currentDayDateObject.getDay(); // 0=Sun, 6=Sat
+                const isWeekend = (currentDayOfWeekGreg === 6 || currentDayOfWeekGreg === 0); // Highlight Sat/Sun
+                
+                const row = document.createElement('tr');
+                if (isWeekend) {
+                    row.classList.add('table-light');
+                }
+                
+                // Day column with Persian day name
+                const dayCell = document.createElement('td');
+                const persianDayIndex = (currentDayOfWeekGreg + 1) % 7; // 0=Sat, ..., 6=Fri
+                dayCell.textContent = `${day} (${PERSIAN_DAY_NAMES[persianDayIndex]})`;
+                dayCell.className = 'fw-bold';
+                row.appendChild(dayCell);
+                
+                // Shift columns
+                for (let shift = 1; shift <= 3; shift++) {
+                    const cell = document.createElement('td');
+                    
+                    const select = document.createElement('select');
+                    select.className = 'form-select form-select-sm engineer-select'; // smaller select
+                    select.dataset.day = day;
+                    select.dataset.shift = `shift${shift}`;
+                    select.dataset.workplace = workplaceName;
+                    
+                    // Add change event handler to check for challenging patterns
+                    select.addEventListener('change', function() {
+                        // Delay highlighting to ensure all changes are processed
+                        setTimeout(() => {
+                            // Pass Jalali year/month
+                            highlightChallengingShiftPatterns(year, month);
+                        }, 100);
+                    });
+                    
+                    // Empty option
+                    const emptyOption = document.createElement('option');
+                    emptyOption.value = '';
+                    emptyOption.textContent = '---'; // Shorter placeholder
+                    select.appendChild(emptyOption);
+                    
+                    // Filter engineers who can work in this workplace
+                    // Ensure window.engineers exists before filtering
+                    (window.engineers || []).filter(eng => eng.workplaces.includes(workplaceName))
+                            .forEach(eng => {
+                                const option = document.createElement('option');
+                                option.value = eng.name;
+                                option.textContent = eng.name;
+                                select.appendChild(option);
+                            });
+                    
+                    cell.appendChild(select);
+                    row.appendChild(cell);
+                }
+                
+                tbody.appendChild(row);
+            }
+            
+            table.appendChild(tbody);
+            container.innerHTML = ''; // Clear previous content
+            container.appendChild(table);
+        });
+        
+        // Load schedule for this Jalali month/year
+        loadSchedule(year, month);
+    }
+    
+    function loadSchedule(year, month) {
+        fetch(`/api/schedule?year=${year}&month=${month}`)
+            .then(response => response.json())
+            .then(data => {
+                // Ensure data is an object (empty or not)
+                currentSchedule = data || {};
+                
+                console.log('Loaded schedule data:', currentSchedule);
+                
+                // First, reset all select elements to empty and remove highlighting
+                document.querySelectorAll('.engineer-select').forEach(select => {
+                    select.value = '';
+                    select.classList.remove('three-shifts-warning', 'consecutive-days-warning');
+                });
+                
+                // Then fill in values from the loaded schedule
+                document.querySelectorAll('.engineer-select').forEach(select => {
+                    const workplace = select.dataset.workplace;
+                    const day = select.dataset.day;
+                    const shift = select.dataset.shift;
+                    
+                    if (currentSchedule[workplace] && 
+                        currentSchedule[workplace][day] && 
+                        currentSchedule[workplace][day][shift]) {
+                        select.value = currentSchedule[workplace][day][shift];
+                    }
+                });
+                
+                // Check for challenging shift patterns after loading the schedule
+                // Only if there's actual data in the schedule
+                let hasData = false;
+                for (const workplace in currentSchedule) {
+                    if (Object.keys(currentSchedule[workplace] || {}).length > 0) {
+                        hasData = true;
+                        break;
+                    }
+                }
+                
+                if (hasData) {
+                    highlightChallengingShiftPatterns(year, month);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading schedule:', error);
+            });
+    }
+    
+    /**
+     * Analyzes the schedule for challenging shift patterns and applies highlights.
+     * Reads the current schedule state directly from the DOM elements.
+     * @param {number} year - The year to analyze
+     * @param {number} month - The month to analyze (1-12)
+     */
+    function highlightChallengingShiftPatterns(year, month) {
+        console.log("Checking for challenging shift patterns by reading DOM...");
+        
+        // Get all engineer select elements from the DOM
+        const selectElements = document.querySelectorAll('.engineer-select');
+        if (selectElements.length === 0) {
+            console.log("No schedule select elements found in DOM");
+            return;
+        }
+        
+        console.log(`Analyzing schedule based on ${selectElements.length} select elements`);
+        
+        // Get number of days in month
+        const daysInMonth = new Date(year, month, 0).getDate();
+        
+        // Create a map to track each engineer's shifts by day, reading from DOM
+        const engineerShifts = {};
+        
+        selectElements.forEach(select => {
+            const engineer = select.value;
+            if (!engineer) return; // Skip empty selections
+            
+            const day = parseInt(select.dataset.day);
+            const shift = parseInt(select.dataset.shift.replace('shift', ''));
+            const workplace = select.dataset.workplace;
+            
+            const dayStr = String(day);
+            
+            // Initialize engineer data structure if needed
+            if (!engineerShifts[engineer]) {
+                engineerShifts[engineer] = {};
+            }
+            if (!engineerShifts[engineer][dayStr]) {
+                engineerShifts[engineer][dayStr] = [];
+            }
+            
+            // Store the shift info
+            engineerShifts[engineer][dayStr].push({
+                workplace,
+                shift
+            });
+        });
+        
+        console.log("Collected engineer shifts data from DOM:", Object.keys(engineerShifts).length, "engineers");
+        
+        // Reset all highlights first
+        selectElements.forEach(select => {
+            select.classList.remove('three-shifts-warning', 'consecutive-days-warning');
+        });
+        
+        // Apply highlights for challenging patterns based on the collected data
+        for (const engineer in engineerShifts) {
+            // Check for three consecutive shifts in one day
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayStr = day.toString();
+                
+                if (engineerShifts[engineer][dayStr] && engineerShifts[engineer][dayStr].length >= 3) {
+                    // Check if they have all three shifts (1, 2, 3)
+                    const shifts = engineerShifts[engineer][dayStr].map(s => s.shift).sort((a, b) => a - b);
+                    const uniqueShifts = [...new Set(shifts)];
+                    
+                    if (uniqueShifts.length === 3 && uniqueShifts[0] === 1 && uniqueShifts[1] === 2 && uniqueShifts[2] === 3) {
+                        console.log(`Engineer ${engineer} works all three shifts on day ${day}`);
+                        // Highlight this engineer for all shifts on this day in all workplaces
+                        highlightEngineerOnDay(engineer, day, 'three-shifts-warning');
+                    }
+                }
+            }
+            
+            // Check for Shift 3 followed by Shift 1 on the next day
+            for (let day = 1; day < daysInMonth; day++) {
+                const currentDayStr = day.toString();
+                const nextDayStr = (day + 1).toString();
+                
+                if (engineerShifts[engineer][currentDayStr] && engineerShifts[engineer][nextDayStr]) {
+                    // Check if they have Shift 3 on current day
+                    const hasShift3 = engineerShifts[engineer][currentDayStr].some(s => s.shift === 3);
+                    
+                    // Check if they have Shift 1 on next day
+                    const hasShift1 = engineerShifts[engineer][nextDayStr].some(s => s.shift === 1);
+                    
+                    if (hasShift3 && hasShift1) {
+                        console.log(`Engineer ${engineer} works Shift 3 on day ${day} and Shift 1 on day ${day+1}`);
+                        // Highlight Shift 3 on current day
+                        highlightEngineerShift(engineer, day, 3, 'consecutive-days-warning');
+                        
+                        // Highlight Shift 1 on next day
+                        highlightEngineerShift(engineer, day + 1, 1, 'consecutive-days-warning');
+                    }
+                }
+            }
+
+            // NEW: Check for three consecutive days of Shift 3
+            for (let day = 1; day <= daysInMonth - 2; day++) {
+                const day1Str = day.toString();
+                const day2Str = (day + 1).toString();
+                const day3Str = (day + 2).toString();
+
+                // Check if engineer has Shift 3 on all three consecutive days
+                const hasShift3Day1 = engineerShifts[engineer][day1Str]?.some(s => s.shift === 3);
+                const hasShift3Day2 = engineerShifts[engineer][day2Str]?.some(s => s.shift === 3);
+                const hasShift3Day3 = engineerShifts[engineer][day3Str]?.some(s => s.shift === 3);
+
+                if (hasShift3Day1 && hasShift3Day2 && hasShift3Day3) {
+                    console.log(`Engineer ${engineer} works Shift 3 on days ${day}, ${day+1}, and ${day+2}`);
+                    // Highlight Shift 3 on all three days
+                    highlightEngineerShift(engineer, day, 3, 'three-shift3-warning');
+                    highlightEngineerShift(engineer, day + 1, 3, 'three-shift3-warning');
+                    highlightEngineerShift(engineer, day + 2, 3, 'three-shift3-warning');
+                }
+            }
+        }
+    }
+    
+    /**
+     * Highlights an engineer name for all shifts on a specific day
+     */
+    function highlightEngineerOnDay(engineer, day, className) {
+        // Find all selects on this day that have this engineer selected
+        const selects = document.querySelectorAll(`.engineer-select[data-day="${day}"]`);
+        console.log(`Found ${selects.length} select elements for day ${day}`);
+        
+        selects.forEach(select => {
+            if (select.value === engineer) {
+                console.log(`Highlighting select for engineer ${engineer} on day ${day} with class ${className}`);
+                select.classList.add(className);
+            }
+        });
+    }
+    
+    /**
+     * Highlights an engineer name for a specific shift on a specific day
+     */
+    function highlightEngineerShift(engineer, day, shiftNum, className) {
+        // Find the specific select for this day and shift
+        const selects = document.querySelectorAll(`.engineer-select[data-day="${day}"][data-shift="shift${shiftNum}"]`);
+        console.log(`Found ${selects.length} select elements for day ${day}, shift ${shiftNum}`);
+        
+        selects.forEach(select => {
+            if (select.value === engineer) {
+                console.log(`Highlighting select for engineer ${engineer} on day ${day}, shift ${shiftNum} with class ${className}`);
+                select.classList.add(className);
+            }
+        });
+    }
+    
+    function showLimitationsModal(engineer) {
+        currentEngineerForLimitations = engineer;
+        
+        // Debug the current limitations
+        console.log('Inline Script: Engineer limitations before editing:', JSON.stringify(engineer.limitations || {}));
+        
+        // Get current Jalali month and year from dropdowns
+        const month = parseInt(document.getElementById('monthSelect').value);
+        const year = parseInt(document.getElementById('yearSelect').value);
+        
+        // Get days in Jalali month
+        const daysInMonth = jalaali.jalaaliMonthLength(year, month);
+        
+        // Create the limitations table
+        const limitationsTable = document.createElement('table');
+        limitationsTable.className = 'table table-bordered';
+        
+        // Create header row
+        const thead = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+        
+        // Day header
+        const dayHeader = document.createElement('th');
+        dayHeader.textContent = 'Day';
+        headerRow.appendChild(dayHeader);
+        
+        // Shift headers
+        for (let i = 1; i <= 3; i++) {
+            const shiftHeader = document.createElement('th');
+            shiftHeader.textContent = `Shift ${i}`;
+            shiftHeader.className = 'text-center'; // Center shift headers
+            headerRow.appendChild(shiftHeader);
+        }
+        
+        thead.appendChild(headerRow);
+        limitationsTable.appendChild(thead);
+        
+        // Create table body
+        const tbody = document.createElement('tbody');
+        
+        for (let day = 1; day <= daysInMonth; day++) {
+            // Get Gregorian date for weekend check
+            const currentGregorian = jalaali.toGregorian(year, month, day);
+            const currentDayDateObject = new Date(currentGregorian.gy, currentGregorian.gm - 1, currentGregorian.gd);
+            const currentDayOfWeekGreg = currentDayDateObject.getDay(); // 0=Sun, 6=Sat
+            const isWeekend = (currentDayOfWeekGreg === 6 || currentDayOfWeekGreg === 0); // Highlight Sat/Sun
+            
+            const row = document.createElement('tr');
+            if (isWeekend) {
+                row.classList.add('table-light');
+            }
+            
+            // Day cell with Persian day name
+            const dayCell = document.createElement('td');
+            const persianDayIndex = (currentDayOfWeekGreg + 1) % 7; // 0=Sat, ..., 6=Fri
+            dayCell.textContent = `${day} (${PERSIAN_DAY_NAMES[persianDayIndex]})`;
+            row.appendChild(dayCell);
+            
+            // Shift checkboxes
+            for (let shift = 1; shift <= 3; shift++) {
+                const cell = document.createElement('td');
+                cell.className = 'text-center'; // Center checkboxes
+                const checkboxId = `limit-day${day}-shift${shift}`;
+                
+                const checkboxWrapper = document.createElement('div');
+                checkboxWrapper.className = 'form-check d-inline-block'; // Display inline
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'form-check-input limitation-checkbox';
+                checkbox.id = checkboxId;
+                checkbox.dataset.day = day; // Store day as number
+                checkbox.dataset.shift = `shift${shift}`;
+                
+                // Check if this day/shift combination is in the limitations
+                // Ensure limitations are checked using string keys for days
+                const dayStr = String(day);
+                if (engineer.limitations && 
+                    engineer.limitations[dayStr] && 
+                    Array.isArray(engineer.limitations[dayStr]) &&
+                    engineer.limitations[dayStr].includes(`shift${shift}`)) {
+                    checkbox.checked = true;
+                }
+                
+                const label = document.createElement('label');
+                label.className = 'form-check-label visually-hidden'; // Hide label visually but keep for accessibility
+                label.htmlFor = checkboxId;
+                label.textContent = `Not Available Day ${day} Shift ${shift}`;
+                
+                checkboxWrapper.appendChild(checkbox);
+                checkboxWrapper.appendChild(label);
+                cell.appendChild(checkboxWrapper);
+                row.appendChild(cell);
+            }
+            
+            tbody.appendChild(row);
+        }
+        
+        limitationsTable.appendChild(tbody);
+        
+        // Add to the modal
+        const limitationsContent = document.getElementById('limitationsContent');
+        limitationsContent.innerHTML = '';
+        limitationsContent.appendChild(limitationsTable);
+        
+        // Show the modal
+        new bootstrap.Modal(document.getElementById('limitationsModal')).show();
+    }
+    
+    function saveLimitations() {
+        if (!currentEngineerForLimitations) return;
+        
+        // Collect all limitations
+        const limitations = {};
+        document.querySelectorAll('.limitation-checkbox:checked').forEach(checkbox => {
+            const day = checkbox.dataset.day;
+            const shift = checkbox.dataset.shift;
+            
+            // Ensure day is stored as string
+            const dayStr = String(day);
+            
+            if (!limitations[dayStr]) {
+                limitations[dayStr] = [];
+            }
+            
+            limitations[dayStr].push(shift);
+        });
+        
+        console.log('Collected limitations:', JSON.stringify(limitations));
+        
+        // Update the engineer's limitations
+        currentEngineerForLimitations.limitations = limitations;
+        
+        // Update the global engineers array
+        const engineerIndex = engineers.findIndex(eng => eng.name === currentEngineerForLimitations.name);
+        if (engineerIndex !== -1) {
+            engineers[engineerIndex].limitations = limitations;
+        }
+        
+        // Save to server
+        fetch('/api/engineers', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: currentEngineerForLimitations.name,
+                workplaces: currentEngineerForLimitations.workplaces,
+                limitations: limitations
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Close modal
+                bootstrap.Modal.getInstance(document.getElementById('limitationsModal')).hide();
+                
+                // Reload engineers
+                loadEngineers();
+                
+                // Show success message
+                alert('Limitations saved successfully!');
+            }
+        })
+        .catch(error => {
+            console.error('Error saving limitations:', error);
+            alert('Failed to save limitations. Please try again.');
+        });
+    }
+    
+    function showShiftLimitsModal(engineer) {
+        currentEngineerForShiftLimits = engineer;
+        
+        // Update the modal title with engineer name
+        document.getElementById('shiftLimitsEngineerName').textContent = engineer.name;
+        
+        // Set the current min/max values or defaults
+        document.getElementById('minShifts').value = engineer.minShifts || 10;
+        document.getElementById('maxShifts').value = engineer.maxShifts || 30;
+        
+        // Show the modal
+        new bootstrap.Modal(document.getElementById('shiftLimitsModal')).show();
+    }
+    
+    function saveShiftLimits() {
+        if (!currentEngineerForShiftLimits) return;
+        
+        const minShifts = parseInt(document.getElementById('minShifts').value);
+        const maxShifts = parseInt(document.getElementById('maxShifts').value);
+        
+        // Validate inputs
+        if (minShifts <= 0 || maxShifts <= 0) {
+            alert('Shift limits must be positive numbers.');
+            return;
+        }
+        
+        if (minShifts > maxShifts) {
+            alert('Minimum shifts cannot be greater than maximum shifts.');
+            return;
+        }
+        
+        // Update the engineer object
+        currentEngineerForShiftLimits.minShifts = minShifts;
+        currentEngineerForShiftLimits.maxShifts = maxShifts;
+        
+        // Update in the global engineers array
+        const engineerIndex = engineers.findIndex(eng => eng.name === currentEngineerForShiftLimits.name);
+        if (engineerIndex !== -1) {
+            engineers[engineerIndex].minShifts = minShifts;
+            engineers[engineerIndex].maxShifts = maxShifts;
+        }
+        
+        // Save to server
+        fetch('/api/engineers', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: currentEngineerForShiftLimits.name,
+                workplaces: currentEngineerForShiftLimits.workplaces,
+                limitations: currentEngineerForShiftLimits.limitations || {},
+                minShifts: minShifts,
+                maxShifts: maxShifts
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Close modal
+                bootstrap.Modal.getInstance(document.getElementById('shiftLimitsModal')).hide();
+                
+                // Reload engineers
+                loadEngineers();
+                
+                // Show success message
+                alert('Shift limits saved successfully!');
+            }
+        })
+        .catch(error => {
+            console.error('Error saving shift limits:', error);
+            alert('Failed to save shift limits. Please try again.');
+        });
+    }
+    
+    // Make saveLimitations function globally available
+    window.saveLimitations = saveLimitations;
+    window.saveShiftLimits = saveShiftLimits;
+    
+    function generateExcel() {
+        const month = parseInt(document.getElementById('monthSelect').value);
+        const year = parseInt(document.getElementById('yearSelect').value);
+        
+        fetch('/api/generate_excel', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                year,
+                month
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to generate Excel files');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.status === 'success') {
+                const downloadList = document.getElementById('downloadList');
+                downloadList.innerHTML = '';
+                
+                data.files.forEach(file => {
+                    const li = document.createElement('li');
+                    li.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center');
+                    
+                    const fileName = document.createElement('span');
+                    fileName.textContent = file;
+                    
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = `/api/download/${file}`;
+                    downloadLink.classList.add('btn', 'btn-sm', 'btn-outline-primary');
+                    downloadLink.innerHTML = '<i class="fas fa-download me-1"></i> Download';
+                    downloadLink.download = file;
+                    
+                    li.appendChild(fileName);
+                    li.appendChild(downloadLink);
+                    downloadList.appendChild(li);
+                });
+                
+                // Show modal
+                new bootstrap.Modal(document.getElementById('excelGeneratedModal')).show();
+            }
+        })
+        .catch(error => {
+            console.error('Error generating Excel files:', error);
+            alert('Failed to generate Excel files. Please make sure you have saved the schedule.');
+        });
+    }
+});
+</script>
+{% endblock %}
