@@ -1,120 +1,6 @@
 [
   {
-    "name": "fasihi",
-    "workplaces": [
-      "Studio Hispan",
-      "Studio Press",
-      "Nodal"
-    ],
-    "limitations": {
-      "1": [
-        "shift1",
-        "shift2",
-        "shift3"
-      ]
-    },
-    "minShifts": 10,
-    "maxShifts": 30
-  },
-  {
-    "name": "samadi",
-    "workplaces": [
-      "Studio Hispan",
-      "Studio Press",
-      "Nodal"
-    ],
-    "limitations": {},
-    "minShifts": 10,
-    "maxShifts": 30
-  },
-  {
-    "name": "imani",
-    "workplaces": [
-      "Studio Hispan",
-      "Studio Press",
-      "Nodal"
-    ],
-    "limitations": {},
-    "minShifts": 10,
-    "maxShifts": 30
-  },
-  {
-    "name": "amiri",
-    "workplaces": [
-      "Studio Hispan",
-      "Studio Press",
-      "Nodal"
-    ],
-    "limitations": {},
-    "minShifts": 10,
-    "maxShifts": 30
-  },
-  {
-    "name": "mohammadi",
-    "workplaces": [
-      "Studio Hispan",
-      "Studio Press",
-      "Nodal"
-    ],
-    "limitations": {},
-    "minShifts": 10,
-    "maxShifts": 30
-  },
-  {
-    "name": "ehsaanpour",
-    "workplaces": [
-      "Engineer Room"
-    ],
-    "limitations": {},
-    "minShifts": 10,
-    "maxShifts": 50
-  },
-  {
-    "name": "kashani",
-    "workplaces": [
-      "Studio Hispan",
-      "Studio Press",
-      "Nodal"
-    ],
-    "limitations": {},
-    "minShifts": 10,
-    "maxShifts": 30
-  },
-  {
-    "name": "shahidi",
-    "workplaces": [
-      "Studio Hispan",
-      "Studio Press",
-      "Nodal"
-    ],
-    "limitations": {},
-    "minShifts": 10,
-    "maxShifts": 30
-  },
-  {
-    "name": "simayi",
-    "workplaces": [
-      "Studio Hispan",
-      "Studio Press",
-      "Nodal"
-    ],
-    "limitations": {},
-    "minShifts": 10,
-    "maxShifts": 30
-  },
-  {
-    "name": "hashemi",
-    "workplaces": [
-      "Studio Hispan",
-      "Studio Press",
-      "Nodal"
-    ],
-    "limitations": {},
-    "minShifts": 10,
-    "maxShifts": 30
-  },
-  {
-    "name": "beshk",
+    "name": "بشک",
     "workplaces": [
       "Studio Hispan",
       "Studio Press"
@@ -124,7 +10,17 @@
     "maxShifts": 30
   },
   {
-    "name": "rad",
+    "name": "علیرضائی",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "شرفی",
     "workplaces": [
       "Studio Hispan",
       "Studio Press",
@@ -135,7 +31,7 @@
     "maxShifts": 30
   },
   {
-    "name": "sharafi",
+    "name": "شریفی",
     "workplaces": [
       "Studio Hispan",
       "Studio Press",
@@ -146,7 +42,77 @@
     "maxShifts": 30
   },
   {
-    "name": "Hokmabadi",
+    "name": "هاشمی",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press",
+      "Nodal"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "رودی",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press",
+      "Nodal"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "عنایت فرد",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press",
+      "Nodal"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "طباطبائی",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press",
+      "Nodal"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "احسان پور",
+    "workplaces": [
+      "Engineer Room"
+    ],
+    "limitations": {
+      "1": [
+        "shift1",
+        "shift2",
+        "shift3"
+      ]
+    },
+    "minShifts": 10,
+    "maxShifts": 60
+  },
+  {
+    "name": "نوبخت",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press",
+      "Nodal"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "حکم آبادی",
     "workplaces": [
       "Studio Hispan",
       "Studio Press",
@@ -158,47 +124,75 @@
     "maxShifts": 30
   },
   {
-    "name": "nasiri",
+    "name": "دودانگه",
     "workplaces": [
       "Studio Hispan",
-      "Studio Press",
-      "Engineer Room"
+      "Studio Press"
     ],
     "limitations": {},
     "minShifts": 10,
     "maxShifts": 30
   },
   {
-    "name": "Nobakht",
+    "name": "فقیهی",
     "workplaces": [
       "Studio Hispan",
       "Studio Press",
       "Nodal"
     ],
-    "limitations": {
-      "4": [
-        "shift1",
-        "shift2",
-        "shift3"
-      ],
-      "21": [
-        "shift2",
-        "shift3"
-      ],
-      "30": [
-        "shift1",
-        "shift2"
-      ]
-    },
+    "limitations": {},
     "minShifts": 10,
     "maxShifts": 30
   },
   {
-    "name": "maleki",
+    "name": "رودی",
     "workplaces": [
       "Studio Hispan",
       "Studio Press",
       "Nodal"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "نظربیگی",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press",
+      "Nodal"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "علیپور",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press",
+      "Nodal"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "رنجبر",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "نصیری",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press",
+      "Engineer Room"
     ],
     "limitations": {},
     "minShifts": 10,

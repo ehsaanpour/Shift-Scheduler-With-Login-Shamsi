@@ -99,7 +99,7 @@ def authenticate_user(username, password):
 # Helper functions
 def load_engineers():
     try:
-        with open(ENGINEERS_FILE, 'r') as f:
+        with open(ENGINEERS_FILE, 'r', encoding='utf-8') as f:
             engineers = json.load(f)
             print(f"LOAD_ENGINEERS: Successfully loaded {len(engineers)} engineers from file")
             return engineers
@@ -126,8 +126,8 @@ def save_engineers(engineers):
         # Print names of engineers being saved
         print(f"SAVE_ENGINEERS: Engineer names: {[eng.get('name', 'UNNAMED') for eng in engineers]}")
         
-        with open(ENGINEERS_FILE, 'w') as f:
-            json.dump(engineers, f, indent=2)
+        with open(ENGINEERS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(engineers, f, indent=2, ensure_ascii=False)
             
         print(f"SAVE_ENGINEERS: Successfully saved {len(engineers)} engineers")
     except Exception as e:
