@@ -1,0 +1,207 @@
+[
+  {
+    "name": "fasihi",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press",
+      "Nodal"
+    ],
+    "limitations": {
+      "1": [
+        "shift1",
+        "shift2",
+        "shift3"
+      ]
+    },
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "samadi",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press",
+      "Nodal"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "imani",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press",
+      "Nodal"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "amiri",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press",
+      "Nodal"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "mohammadi",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press",
+      "Nodal"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "ehsaanpour",
+    "workplaces": [
+      "Engineer Room"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 50
+  },
+  {
+    "name": "kashani",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press",
+      "Nodal"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "shahidi",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press",
+      "Nodal"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "simayi",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press",
+      "Nodal"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "hashemi",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press",
+      "Nodal"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "beshk",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "rad",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press",
+      "Nodal"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "sharafi",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press",
+      "Nodal"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "Hokmabadi",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press",
+      "Nodal",
+      "Engineer Room"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "nasiri",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press",
+      "Engineer Room"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "Nobakht",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press",
+      "Nodal"
+    ],
+    "limitations": {
+      "4": [
+        "shift1",
+        "shift2",
+        "shift3"
+      ],
+      "21": [
+        "shift2",
+        "shift3"
+      ],
+      "30": [
+        "shift1",
+        "shift2"
+      ]
+    },
+    "minShifts": 10,
+    "maxShifts": 30
+  },
+  {
+    "name": "maleki",
+    "workplaces": [
+      "Studio Hispan",
+      "Studio Press",
+      "Nodal"
+    ],
+    "limitations": {},
+    "minShifts": 10,
+    "maxShifts": 30
+  }
+]
