@@ -70,18 +70,10 @@
                         <div class="form-group">
                             <label for="excelMonthSelect">Month:</label>
                             <select id="excelMonthSelect" class="form-select">
-                                <option value="1">January</option>
-                                <option value="2">February</option>
-                                <option value="3">March</option>
-                                <option value="4">April</option>
-                                <option value="5">May</option>
-                                <option value="6">June</option>
-                                <option value="7">July</option>
-                                <option value="8">August</option>
-                                <option value="9">September</option>
-                                <option value="10">October</option>
-                                <option value="11">November</option>
-                                <option value="12">December</option>
+                                {# Populate with Persian month names passed from Flask #}
+                                {% for i in range(1, 13) %}
+                                    <option value="{{ i }}">{{ persian_month_names[i] }}</option>
+                                {% endfor %}
                             </select>
                         </div>
                     </div>
@@ -89,7 +81,7 @@
                         <div class="form-group">
                             <label for="excelYearSelect">Year:</label>
                             <select id="excelYearSelect" class="form-select">
-                                <!-- Will be populated by JavaScript -->
+                                <!-- Will be populated by JavaScript using current_jalali_year -->
                             </select>
                         </div>
                     </div>
@@ -136,23 +128,33 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize year dropdown
-            const yearSelect = document.getElementById('excelYearSelect');
-            const currentYear = new Date().getFullYear();
+            // Get Jalali date passed from Flask - ensure they are treated as numbers
+            const currentJalaliYear = parseInt("{{ current_jalali_year }}"); 
+            const currentJalaliMonth = parseInt("{{ current_jalali_month }}");
             
-            for (let year = currentYear - 5; year <= currentYear + 5; year++) {
-                const option = document.createElement('option');
-                option.value = year;
-                option.textContent = year;
-                if (year === currentYear) {
-                    option.selected = true;
+            // Check if parsing was successful (optional but good practice)
+            if (isNaN(currentJalaliYear) || isNaN(currentJalaliMonth)) {
+                console.error("Failed to parse Jalali date from template. Using fallback.");
+                // Provide a fallback or handle the error appropriately
+                // For example, use Gregorian current date as a fallback
+                // currentJalaliYear = new Date().getFullYear(); 
+                // currentJalaliMonth = new Date().getMonth() + 1;
+            } else {
+                // Initialize year dropdown using Jalali year
+                const yearSelect = document.getElementById('excelYearSelect');
+                for (let year = currentJalaliYear - 5; year <= currentJalaliYear + 5; year++) {
+                    const option = document.createElement('option');
+                    option.value = year;
+                    option.textContent = year;
+                    if (year === currentJalaliYear) {
+                        option.selected = true;
+                    }
+                    yearSelect.appendChild(option);
                 }
-                yearSelect.appendChild(option);
+                
+                // Set current month using Jalali month
+                document.getElementById('excelMonthSelect').value = currentJalaliMonth;
             }
-            
-            // Set current month
-            const currentMonth = new Date().getMonth() + 1; // JavaScript months are 0-indexed
-            document.getElementById('excelMonthSelect').value = currentMonth;
             
             // Add event listener to the generate button
             const generateBtn = document.getElementById('excelGenerateBtn');

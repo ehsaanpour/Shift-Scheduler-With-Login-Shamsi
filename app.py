@@ -10,7 +10,7 @@ import shutil
 import tempfile
 import hashlib
 import secrets
-import jdatetime
+import jdatetime as jdt
 import locale
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
@@ -24,7 +24,7 @@ try:
 except locale.Error:
     print("Warning: Persian locale 'fa_IR' not found. Using default locale.")
     # Fallback or handle error as needed
-jdatetime.set_locale(jdatetime.FA_LOCALE)
+jdt.set_locale(jdt.FA_LOCALE)
 PERSIAN_MONTH_NAMES = [
     "", "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", 
     "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"
@@ -283,8 +283,18 @@ def excel_generator_page():
     Standalone page for generating Excel files from the schedule.
     Use this if the main Excel generation functionality isn't working.
     """
+    # Get current Jalali date
+    now_gregorian = datetime.now()
+    now_jalali = jdt.datetime.fromgregorian(datetime=now_gregorian)
+    current_jalali_year = now_jalali.year
+    current_jalali_month = now_jalali.month
+    
     return render_template("excel_generator.html", 
-                          username=session['user']['username'])
+                          username=session['user']['username'],
+                          current_jalali_year=current_jalali_year,
+                          current_jalali_month=current_jalali_month,
+                          persian_month_names=PERSIAN_MONTH_NAMES # Pass month names
+                          )
 
 # API Routes
 @app.route('/api/engineers', methods=['GET'])
@@ -363,7 +373,7 @@ def delete_engineer(n):
 def get_schedule():
     # Default to current Jalali year and month
     now_gregorian = datetime.now()
-    now_jalali = jdatetime.datetime.fromgregorian(datetime=now_gregorian)
+    now_jalali = jdt.datetime.fromgregorian(datetime=now_gregorian)
     
     year = request.args.get('year', default=now_jalali.year, type=int)
     month = request.args.get('month', default=now_jalali.month, type=int)
@@ -494,20 +504,39 @@ def upload_pattern():
         os.remove(tmp_path)
 
 def create_excel_schedule(file_path, workplace, year, month, schedule_data):
-    # Get number of days in the Jalali month
     try:
-        # Need a valid day to create a date object, use day 1
-        j_date_start = jdatetime.date(year, month, 1)
-        num_days = j_date_start.daysinmonth
-        jalali_month_name = PERSIAN_MONTH_NAMES[month] # Use Persian name
-    except ValueError:
-        print(f"Error: Invalid Jalali date {year}-{month}-1")
-        # Handle error gracefully, maybe create an empty file or return
+        # Ensure year and month are integers
+        year_int = int(year)
+        month_int = int(month)
+
+        # --- Calculate num_days manually to bypass potential .daysinmonth bug ---
+        if 1 <= month_int <= 6:
+            num_days = 31
+        elif 7 <= month_int <= 11:
+            num_days = 30
+        elif month_int == 12:
+            if jdt.isleap(year_int):
+                num_days = 30
+            else:
+                num_days = 29
+        else:
+            raise ValueError(f"Invalid month number: {month_int}")
+        # --- End manual calculation ---
+        
+        # Get month name 
+        jalali_month_name = PERSIAN_MONTH_NAMES[month_int]
+
+    except ValueError as ve:
+        print(f"Error: Invalid integer year/month or invalid Jalali date: {year}-{month}. Details: {ve}")
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws['A1'] = f"Error generating schedule for {year}-{month}"
+        ws['A1'] = f"ValueError for {year}-{month}: {ve}"
         wb.save(file_path)
         return
+    # Removed other specific exception handlers (TypeError, AttributeError, generic Exception) related to the initial j_date_start
+    # The code will now rely on Flask's default error handling if something unexpected happens after the ValueError check.
+
+    # --- If we reach here, num_days and jalali_month_name should be set correctly ---
 
     # Create workbook and worksheet
     wb = openpyxl.Workbook()
@@ -529,7 +558,8 @@ def create_excel_schedule(file_path, workplace, year, month, schedule_data):
     # Create title using Jalali month name and year
     ws.merge_cells('A1:D1')
     title_cell = ws['A1']
-    title_cell.value = f"{workplace} - {jalali_month_name} {year}" # Use Jalali month name
+    # Use the jalali_month_name obtained safely from the try block
+    title_cell.value = f"{workplace} - {jalali_month_name} {year_int}" 
     title_cell.font = Font(bold=True, size=16)
     title_cell.alignment = centered
     
@@ -544,39 +574,42 @@ def create_excel_schedule(file_path, workplace, year, month, schedule_data):
         cell.alignment = centered
         ws.column_dimensions[get_column_letter(col)].width = 20
     
-    # Fill in days
+    # Fill in days (using num_days obtained safely from the try block)
     for day in range(1, num_days + 1):
         row = day + 3
         
         # Get Jalali date and Gregorian date for weekday calculation
         try:
-            j_date = jdatetime.date(year, month, day)
+            # Use integer year/month
+            j_date = jdt.date(year_int, month_int, day) 
+            
             g_date = j_date.togregorian()
-            # Get Persian day name (Note: jdatetime weekday starts Monday=0, Python calendar starts Monday=0, but we need Saturday=0)
-            # Gregorian weekday: Monday=0 ... Saturday=5, Sunday=6
-            # Persian day names list: Shanbeh=0 ... Jomeh=6
-            # Map Gregorian weekday to Persian index: (weekday + 2) % 7 maps Saturday to 0, Sunday to 1, ..., Friday to 6
+            
+            # Get Persian day name 
             gregorian_weekday = g_date.weekday()
-            persian_weekday_index = (gregorian_weekday + 1) % 7 # Saturday=0, Sunday=1 ... Friday=6
+            
+            persian_weekday_index = (gregorian_weekday + 1) % 7 
             persian_day_name = PERSIAN_DAY_NAMES[persian_weekday_index]
             
-        except ValueError:
-            print(f"Error: Could not process date {year}-{month}-{day}")
-            persian_day_name = "خطا" # Error in Persian
-            g_date = None # Avoid error later
+        except ValueError as loop_ve:
+            print(f"Error in day loop (ValueError): Could not process date {year_int}-{month_int}-{day}. Error: {loop_ve}")
+            persian_day_name = "خطا"
+            g_date = None 
+        except Exception as loop_e: # Catch any unexpected error in the loop
+            print(f"Error in day loop (Exception): Failed on day {day}. Error: {loop_e}, Type: {type(loop_e)}")
+            # Optionally re-raise or handle more gracefully 
+            # For now, just print and continue with error values
+            persian_day_name = "خطا"
+            g_date = None 
         
         # Day column with Persian day name
         day_cell = ws.cell(row=row, column=1)
-        # Display day number and Persian day name
         day_cell.value = f"{day} - {persian_day_name}" 
         day_cell.border = border
         day_cell.alignment = Alignment(horizontal='left', vertical='center')
         
-        # Weekend formatting (Keeping Sat/Sun for now, adjust if needed)
-        # Note: Weekends in Iran are typically Friday (and often Thursday afternoon)
-        # j_date.weekday() might follow ISO (Mon=0) or another standard. 
-        # Using Gregorian weekday for consistency with original logic for now.
-        is_weekend = (g_date.weekday() >= 5) if g_date else False # Check if g_date is not None
+        # Weekend formatting
+        is_weekend = (g_date.weekday() >= 5) if g_date else False 
         if is_weekend:
             for col in range(1, 5):
                 ws.cell(row=row, column=col).fill = weekend_fill
