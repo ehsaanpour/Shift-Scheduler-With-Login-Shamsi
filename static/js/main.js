@@ -1368,6 +1368,18 @@ function applyPattern() {
         });
     });
     
+    // --- Trigger highlight update after applying pattern ---
+    const year = parseInt(document.getElementById('yearSelect').value);
+    const month = parseInt(document.getElementById('monthSelect').value);
+    if (typeof highlightChallengingShiftPatterns === 'function') {
+        // Use setTimeout to allow the browser to update the DOM first
+        setTimeout(() => {
+            highlightChallengingShiftPatterns(year, month);
+            console.log('Highlighting triggered after pattern apply.');
+        }, 100); 
+    }
+    // --- End highlight update ---
+
     // Show results
     const message = `Applied ${appliedCount} assignments from the pattern.` +
         (skippedDueToLimitations > 0 ? ` Skipped ${skippedDueToLimitations} due to limitations.` : '') +
