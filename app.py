@@ -12,9 +12,13 @@ import hashlib
 import secrets
 import jdatetime as jdt
 import locale
+import logging # Add logging import
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 app.secret_key = secrets.token_hex(16)  # Generate a random secret key
+
+# Set up logging
+logging.basicConfig(level=logging.INFO) # Add basic logging configuration
 
 # Set jdatetime locale to Persian
 try:
@@ -462,46 +466,56 @@ def upload_pattern():
     if not file.filename.endswith(('.xlsx', '.xls')):
         return jsonify({"error": "Invalid file format. Only Excel files (.xlsx, .xls) are supported."}), 400
     
-    # Create a temporary file
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
-        # Save the uploaded file
-        file.save(tmp.name)
-        tmp_path = tmp.name
-    
+    # --- Revised Temp File Handling ---
+    tmp_path = None
+    workbook = None 
     try:
+        # Create a temporary file path
+        fd, tmp_path = tempfile.mkstemp(suffix='.xlsx')
+        os.close(fd) # Close the file descriptor, we just need the path
+
+        # Save the uploaded file directly to the path
+        file.save(tmp_path)
+        
         # Open the Excel file
         workbook = openpyxl.load_workbook(tmp_path, data_only=True)
-        
-        # Assume the first sheet is the pattern sheet
         sheet = workbook.active
         
-        # Parse the pattern (expecting days as rows and shifts as columns)
+        # Parse the pattern
         pattern = {}
-        
-        # Determine max rows to read (30 or 31 days)
         max_rows = min(sheet.max_row, 31)
-        
-        # Read each day (row) and the 3 shifts (columns)
         for day in range(1, max_rows + 1):
             pattern[str(day)] = {}
-            
-            # Read up to 3 shifts (columns)
             for shift in range(1, min(4, sheet.max_column + 1)):
                 cell_value = sheet.cell(row=day, column=shift).value
-                
-                # Only include non-empty cells
                 if cell_value:
                     pattern[str(day)][f"shift{shift}"] = str(cell_value).strip()
         
+        # Explicitly close the workbook *before* returning
+        workbook.close()
+        workbook = None # Indicate workbook is closed
+
         return jsonify({
             "status": "success", 
             "pattern": pattern
         })
     except Exception as e:
+        logging.error(f"Error processing pattern file '{file.filename}': {e}", exc_info=True)
+        # Ensure workbook is closed if an error occurred during processing
+        if workbook: 
+            try:
+                workbook.close()
+            except Exception as close_err:
+                logging.error(f"Error closing workbook during exception handling: {close_err}")
         return jsonify({"error": f"Error processing Excel file: {str(e)}"}), 500
     finally:
-        # Clean up the temporary file
-        os.remove(tmp_path)
+        # Clean up the temporary file if the path was created
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception as remove_err:
+                 # Log if removal fails, but don't crash the request
+                logging.error(f"Failed to remove temporary file {tmp_path}: {remove_err}")
 
 def create_excel_schedule(file_path, workplace, year, month, schedule_data):
     try:

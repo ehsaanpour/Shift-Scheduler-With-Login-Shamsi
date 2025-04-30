@@ -90,7 +90,13 @@
     "workplaces": [
       "Engineer Room"
     ],
-    "limitations": {},
+    "limitations": {
+      "1": [
+        "shift1",
+        "shift2",
+        "shift3"
+      ]
+    },
     "minShifts": 10,
     "maxShifts": 60
   },
